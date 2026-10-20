@@ -1,18 +1,28 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "diario-mar-segnaposto",
-    "storage_bucket": "diario-mar-segnaposto.appspot.com"
+    "project_number": "155974403684",
+    "project_id": "diario-mar",
+    "storage_bucket": "diario-mar.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
-        "android_client_info": { "package_name": "sm.mar.diario" }
+        "mobilesdk_app_id": "1:155974403684:android:201e28321da47b5b50c171",
+        "android_client_info": {
+          "package_name": "sm.mar.diario"
+        }
       },
       "oauth_client": [],
-      "api_key": [ { "current_key": "AIzaSySegnapostoSegnapostoSegnapost00" } ],
-      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUWKX0xcS6ulTSngoXZ-8Tc-aEXyFpy2g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"
