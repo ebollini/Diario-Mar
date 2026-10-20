@@ -56,8 +56,10 @@ jobs:
       - name: Pubblica la versione
         env:
           GH_TOKEN: ${{ github.token }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
         run: |
+          if [ -n "$KEYSTORE_PASS" ]; then FIRMA="Firma definitiva."; else FIRMA="ATTENZIONE: firma provvisoria (manca il secret KEYSTORE_PASS)."; fi
           cp app/build/outputs/apk/release/app-release.apk DiarioMAR.apk
           gh release create "v1.${{ github.run_number }}" DiarioMAR.apk \
             --title "Diario MAR 1.${{ github.run_number }}" \
-            --notes "Scarica DiarioMAR.apk dal telefono e installalo." --latest
+            --notes "Scarica DiarioMAR.apk dal telefono e installalo. $FIRMA" --latest
