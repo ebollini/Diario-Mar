@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5f7a">
+<title>Diario MAR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Layout: logbook di officina — colonna diario a sinistra, follow-up e email da registrare a destra; su telefono una colonna */
+:root{
+  --bg:#eef1f3; --paper:#fbfcfc; --ink:#17232b; --muted:#5d6b74; --line:#d5dce1; --grid:#e3e8eb;
+  --accent:#1f5f7a; --accent-ink:#ffffff; --accent-soft:#dbe9ef;
+  --warn:#b4570d; --warn-soft:#fbe9d6; --ok:#2f7a4b; --ok-soft:#ddf0e3; --danger:#a8322b;
+  --t-call:#1f5f7a; --t-in:#6b4fa0; --t-out:#2f7a4b; --t-meet:#9a6a12; --t-note:#5d6b74; --t-wa:#128c4b;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11181d; --paper:#18222a; --ink:#e3eaee; --muted:#93a3ad; --line:#2b3943; --grid:#1d2830;
+  --accent:#5fa9c8; --accent-ink:#0d1b22; --accent-soft:#1c3644;
+  --warn:#f0a35c; --warn-soft:#3a2a18; --ok:#6cc58f; --ok-soft:#183325; --danger:#ef7a70;
+  --t-call:#5fa9c8; --t-in:#a98fe0; --t-out:#6cc58f; --t-meet:#e2b45a; --t-note:#93a3ad; --t-wa:#4fd38a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11181d; --paper:#18222a; --ink:#e3eaee; --muted:#93a3ad; --line:#2b3943; --grid:#1d2830;
+  --accent:#5fa9c8; --accent-ink:#0d1b22; --accent-soft:#1c3644;
+  --warn:#f0a35c; --warn-soft:#3a2a18; --ok:#6cc58f; --ok-soft:#183325; --danger:#ef7a70;
+  --t-call:#5fa9c8; --t-in:#a98fe0; --t-out:#6cc58f; --t-meet:#e2b45a; --t-note:#93a3ad; --t-wa:#4fd38a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1440px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;margin:0;text-wrap:balance}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:var(--r);padding:8px 12px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line)}
+.btn.sm{padding:4px 8px;font-size:13px}
+.btn.danger{color:var(--danger)}
+input,select,textarea{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:64px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
+
+/* Lock */
+.lock{min-height:80vh;display:grid;place-items:center}
+.lock-card{width:min(360px,100%);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:28px;display:grid;gap:14px;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:20px 20px}
+.lock-card h1{font-size:32px}
+.lock-card input{font-family:var(--f-mono);font-size:22px;letter-spacing:.4em;text-align:center}
+.err{color:var(--danger);font-size:13px;min-height:1em}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.top h1{font-size:38px;line-height:1}
+.top .sub{color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:6px;flex-wrap:wrap}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 4px}
+.stat{display:flex;align-items:baseline;gap:6px}
+.stat b{font-family:var(--f-display);font-size:26px;font-weight:600}
+.stat span{font-size:13px;color:var(--muted)}
+.stat.warn b{color:var(--warn)}
+
+/* Check-in banner */
+.checkin{margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--r);padding:10px 14px}
+.checkin p{margin:0}
+.checkin strong{color:var(--warn)}
+
+.stack{display:grid;gap:20px;margin-top:16px}
+.envs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line);overflow-x:auto}
+.env{display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;padding:8px 14px 10px;cursor:pointer;font-family:var(--f-display);font-size:20px;font-weight:600;color:var(--muted)}
+.env .ico{width:26px;height:26px}
+.env .ico svg{width:16px;height:16px}
+.env[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.env:hover{color:var(--ink)}
+.badge{font-size:12px;font-weight:500;background:var(--warn);color:var(--paper);border-radius:999px;padding:1px 7px;font-family:var(--f-mono)}
+.tri{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start}
+@media (max-width:1180px){.tri{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.tri{grid-template-columns:minmax(0,1fr)}}
+.ttl{display:flex;align-items:center;gap:10px}
+.ico{width:30px;height:30px;flex:none;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--ic,var(--accent))}
+.ico svg{width:18px;height:18px}
+.cnt{font-size:13px;color:var(--muted)}
+.fu-wide{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:0 24px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.panel-h h2{font-size:22px}
+
+/* Form */
+.types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.type{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px}
+.type i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.type[aria-pressed="true"]{border-color:var(--c);background:var(--accent-soft);font-weight:600}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:8px}
+.fu-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 12px;padding:8px 10px;border:1px dashed var(--line);border-radius:var(--r)}
+.fu-row label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px}
+.fu-row input[type=checkbox]{width:auto}
+.fu-row .fu-fields{display:flex;gap:8px;flex:1 1 260px;flex-wrap:wrap}
+.fu-row .fu-fields input{flex:1 1 140px}
+.fld{display:grid;gap:4px}
+#af>.lbl{display:block;margin-bottom:4px}
+.factions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+/* Day nav + timeline */
+.daynav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.daynav input{width:auto}
+.search{margin-bottom:12px}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:52px;top:4px;bottom:4px;width:1px;background:var(--line)}
+.ent{display:grid;grid-template-columns:44px 18px minmax(0,1fr) auto;gap:8px;padding:8px 0;align-items:start;cursor:pointer;border-radius:var(--r)}
+.ent:hover{background:var(--bg)}
+.ent .t{font-family:var(--f-mono);font-size:13px;color:var(--muted);padding-top:2px;text-align:right}
+.ent .dot{width:11px;height:11px;border-radius:50%;background:var(--c);margin:5px 0 0 3px;position:relative;box-shadow:0 0 0 3px var(--paper)}
+.ent .body{min-width:0}
+.ent .who{font-weight:600}
+.ent .co{color:var(--muted);font-weight:400}
+.ent .subj{overflow-wrap:anywhere}
+.ent .nt{color:var(--muted);font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
+.tag{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--c);font-weight:600;white-space:nowrap}
+.ent .when{font-size:12px;color:var(--muted)}
+.ent-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ent .del{opacity:.55}
+.ent:hover .del,.ent .del:focus-visible{opacity:1}
+.ent .confirm{justify-content:flex-end}
+.empty{color:var(--muted);padding:18px 4px;text-align:center;font-size:14px}
+
+/* Follow-ups */
+.fug h3{font-size:15px;font-family:var(--f-body);font-weight:600;margin:12px 0 6px;display:flex;gap:6px;align-items:center}
+.fug h3 .n{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.fu{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.fu input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:var(--ok);cursor:pointer}
+.fu .ft{overflow-wrap:anywhere}
+.fu .fm{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:2px}
+.due{font-family:var(--f-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--bg)}
+.due.late{background:var(--warn-soft);color:var(--warn);font-weight:500}
+.due.today{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.fu .acts{display:flex;gap:2px;flex-wrap:wrap}
+
+/* Imports */
+.imp-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:20px}
+.imp-col{min-width:0}
+.imp-calls{margin-bottom:18px}
+.imp-col h3{font-size:18px;display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:2px solid var(--c)}
+.imp-col h3 .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-weight:400}
+.imp{border-top:1px solid var(--line);padding:10px 0;display:grid;gap:4px}
+.panel-h+div>.imp:first-child{border-top:0;padding-top:0}
+.imp.on{background:var(--accent-soft);box-shadow:-8px 0 0 var(--accent-soft),8px 0 0 var(--accent-soft);border-radius:4px}
+.addr{font-family:var(--f-mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.imp .ih{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.imp .subj{font-weight:600;overflow-wrap:anywhere}
+.imp .sn{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.imp .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+
+/* Overlay */
+.ov{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:grid;place-items:center;padding:16px;z-index:20}
+.dlg{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(440px,100%);display:grid;gap:12px;max-height:90vh;overflow:auto}
+.dlg h2{font-size:24px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:var(--r);font-size:14px;display:flex;gap:12px;align-items:center;z-index:30;max-width:calc(100% - 32px)}
+.toast button{background:none;border:0;color:var(--bg);text-decoration:underline;cursor:pointer;padding:0}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+@media (prefers-reduced-motion:no-preference){.ent,.fu{transition:background .15s}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="lock"><div class="lock-card"><h1>Diario MAR</h1><p class="lbl">Caricamento…</p></div></div>
+</div>
+<div id="ovl"></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, deleteDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { firebaseConfig } from "./config.js";
+const TYPES={
+  call:{l:"Telefonata",c:"var(--t-call)"},
+  email_out:{l:"Email inviata",c:"var(--t-out)"},
+  email_in:{l:"Email ricevuta",c:"var(--t-in)"},
+  meeting:{l:"Incontro",c:"var(--t-meet)"},
+  whatsapp:{l:"WhatsApp",c:"var(--t-wa)"},
+  note:{l:"Nota",c:"var(--t-note)"}
+};
+const CHECKIN_H=3;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const dstr=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const tstr=d=>pad(d.getHours())+":"+pad(d.getMinutes());
+const today=()=>dstr(new Date());
+const addDays=(s,n)=>{const d=new Date(s+"T12:00");d.setDate(d.getDate()+n);return dstr(d)};
+const addWorkDays=(s,n)=>{let d=s;while(n>0){d=addDays(d,1);const w=new Date(d+"T12:00").getDay();if(w!==0&&w!==6)n--}return d};
+const fmtDay=s=>new Date(s+"T12:00").toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
+const fmtShort=s=>new Date(s+"T12:00").toLocaleDateString("it-IT",{day:"2-digit",month:"short"});
+const ss={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
+
+const S={db:null,settings:{},mainShown:false,user:null,day:today(),q:"",acts:[],recent:[],fus:[],imps:[],
+  form:{type:"call",editId:null},unsubDay:null,started:false,dl:null};
+
+
+function toast(msg,undo){const t=$("#toast");t.innerHTML=`<div class="toast" role="status">${esc(msg)}${undo?' <button id="undo">Annulla</button>':""}</div>`;
+  if(undo)$("#undo").onclick=()=>{undo();t.innerHTML=""};clearTimeout(toast.h);toast.h=setTimeout(()=>t.innerHTML="",5000)}
+function fail(e){console.error(e);toast(e&&e.code==="permission-denied"?"Accesso ai dati negato: controlla le regole di Firestore.":"Salvataggio non riuscito. Controlla la connessione e riprova.")}
+
+/* ---------- Firebase ---------- */
+const fbApp=initializeApp(firebaseConfig);
+const auth=getAuth(fbApp);
+let fs;
+try{fs=initializeFirestore(fbApp,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}catch(e){fs=initializeFirestore(fbApp,{})}
+
+/* Piccolo adattatore con la stessa forma usata dal resto della pagina. */
+function makeDb(uid){
+  const base=["users",uid];
+  const fix=p=>p.replace(/^imports(\/|$)/,"inbox$1").split("/");
+  const wrapDoc=s=>({id:s.id,exists:s.exists(),data:()=>s.data()});
+  const wrapQ=s=>({docs:s.docs.map(d=>({id:d.id,data:()=>d.data()})),size:s.size,empty:s.empty});
+  function D(r){return{id:r.id,
+    get:async()=>wrapDoc(await getDoc(r)),
+    set:d=>setDoc(r,d),
+    update:d=>setDoc(r,d,{merge:true}),
+    delete:()=>deleteDoc(r),
+    onSnapshot:(cb,err)=>onSnapshot(r,s=>cb(wrapDoc(s)),err)}}
+  function Q(ref,cons){const q=()=>cons.length?query(ref,...cons):ref;return{
+    where:(f,op,v)=>Q(ref,[...cons,where(f,op,v)]),
+    orderBy:(f,d)=>Q(ref,[...cons,orderBy(f,d||"asc")]),
+    limit:n=>Q(ref,[...cons,limit(n)]),
+    get:async()=>wrapQ(await getDocs(q())),
+    onSnapshot:(cb,err)=>onSnapshot(q(),s=>cb(wrapQ(s)),err),
+    add:async d=>{const r=await addDoc(ref,d);return{id:r.id}},
+    doc:id=>D(id?doc(ref,id):doc(ref))}}
+  return{doc:p=>D(doc(fs,...base,...fix(p))),collection:p=>Q(collection(fs,...base,...fix(p)),[]),raw:{fs,base}};
+}
+
+onAuthStateChanged(auth,user=>{
+  if(!user){S.db=null;S.started=false;S.mainShown=false;return renderLogin()}
+  S.db=makeDb(user.uid);S.user=user;
+  S.db.doc("settings/main").onSnapshot(s=>{S.settings=s.exists?s.data():{};if(!S.mainShown){S.mainShown=true;startData();renderMain()}else renderBanner()},fail);
+});
+
+function renderLogin(){
+  $("#app").innerHTML=`<div class="lock"><form class="lock-card" id="f">
+  <h1>Diario MAR</h1><p>Accedi con l'account del diario: lo stesso che usi sul telefono.</p>
+  <label class="lbl" for="le">Email</label><input id="le" type="email" autocomplete="username">
+  <label class="lbl" for="lp">Password</label><input id="lp" type="password" autocomplete="current-password" style="letter-spacing:normal;text-align:left;font-size:16px">
+  <div class="err" id="er"></div><button class="btn pri" id="lb">Accedi</button>
+  <button type="button" class="btn ghost sm" id="lf">Password dimenticata</button></form></div>`;
+  $("#le").focus();
+  $("#f").onsubmit=async e=>{e.preventDefault();$("#er").textContent="";$("#lb").disabled=true;
+    try{await signInWithEmailAndPassword(auth,$("#le").value.trim(),$("#lp").value)}
+    catch(err){$("#er").textContent="Accesso non riuscito: controlla email e password.";$("#lb").disabled=false}};
+  $("#lf").onclick=async()=>{const em=$("#le").value.trim();if(!em)return $("#er").textContent="Scrivi prima la tua email.";
+    try{await sendPasswordResetEmail(auth,em);$("#er").textContent="Ti ho inviato un'email per reimpostare la password."}catch(e){$("#er").textContent="Non riesco a inviare l'email: controlla l'indirizzo."}};
+}
+function lock(){$("#ovl").innerHTML="";signOut(auth)}
+setInterval(()=>{if(S.mainShown)renderBanner()},60000);
+
+/* ---------- Data ---------- */
+function startData(){
+  if(S.started)return;S.started=true;
+  const db=S.db;
+  db.collection("activities").orderBy("ts","desc").limit(400).onSnapshot(s=>{S.recent=s.docs.map(d=>({id:d.id,...d.data()}));renderLists()},fail);
+  db.collection("followups").where("done","==",false).onSnapshot(s=>{S.fus=s.docs.map(d=>({id:d.id,...d.data()}));renderLists()},fail);
+  db.collection("imports").where("status","==","new").onSnapshot(s=>{S.imps=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.ts||0)-(a.ts||0));renderLists()},fail);
+  subDay();
+}
+function subDay(){
+  if(S.unsubDay)S.unsubDay();
+  S.unsubDay=S.db.collection("activities").where("date","==",S.day).onSnapshot(s=>{S.acts=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.time||"").localeCompare(b.time||""));renderLists()},fail);
+}
+
+/* ---------- Main ---------- */
+const svg=(d,c)=>`<span class="ico" aria-hidden="true" style="--ic:${c}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg></span>`;
+const IC={
+  diary:svg('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 8h8M8 12h6"/>',"var(--accent)"),
+  add:svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',"var(--t-meet)"),
+  call:svg('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',"var(--t-call)"),
+  inbox:svg('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',"var(--t-in)"),
+  sent:svg('<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',"var(--t-out)"),
+  wa:svg('<path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 9.5c.3 2.3 2.2 4.2 4.5 4.5"/>',"var(--t-wa)"),
+  fu:svg('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>',"var(--warn)")
+};
+
+function renderMain(){
+  const d=S.settings;
+  $("#app").innerHTML=`
+  <header class="top">
+    <div><p class="sub" id="todayLbl"></p><h1>Diario MAR</h1></div>
+    <div class="top-actions">
+      <button class="btn" id="bCheck">Fai il punto</button>
+      <button class="btn ghost" id="bExport">Esporta CSV</button>
+      <button class="btn ghost" id="bPin">Impostazioni</button>
+      <button class="btn ghost" id="bLock">Esci</button>
+    </div>
+  </header>
+  <div class="stats" id="stats"></div>
+  <div id="banner"></div>
+  <nav class="envs" role="tablist" aria-label="Sezioni">
+    <button type="button" role="tab" class="env" id="tabDiary" data-env="diary">${IC.diary}<span>Diario</span></button>
+    <button type="button" role="tab" class="env" id="tabWork" data-env="work">${IC.add}<span>Attività</span><b class="badge mono" id="workBadge" hidden></b></button>
+  </nav>
+  <div class="stack" id="envDiary" role="tabpanel" aria-labelledby="tabDiary">
+      <section class="panel" aria-labelledby="hDay">
+        <div class="panel-h"><h2 id="hDay" class="ttl">${IC.diary}Diario</h2>
+          <div class="daynav"><button class="btn sm" id="dPrev" aria-label="Giorno precedente">‹</button>
+          <input type="date" id="dPick" class="mono" aria-label="Giorno"><button class="btn sm" id="dNext" aria-label="Giorno successivo">›</button>
+          <button class="btn sm ghost" id="dToday">Oggi</button></div></div>
+        <input class="search" id="q" type="search" placeholder="Cerca contatto, azienda, oggetto nelle ultime attività" aria-label="Cerca">
+        <p class="lbl" id="dayLbl"></p>
+        <ul class="tl" id="tl"></ul>
+      </section>
+  </div>
+  <div class="stack" id="envWork" role="tabpanel" aria-labelledby="tabWork">
+      <section class="panel" aria-labelledby="hAdd">
+        <div class="panel-h"><h2 id="hAdd" class="ttl">${IC.add}Registra attività</h2><span class="lbl" id="editLbl"></span></div>
+        <form id="af" autocomplete="off">
+          <div class="types" role="group" aria-label="Tipo di attività">${Object.entries(TYPES).map(([k,t])=>`<button type="button" class="type" data-t="${k}" style="--c:${t.c}" aria-pressed="false"><i></i>${t.l}</button>`).join("")}</div>
+          <div class="frow">
+            <input id="fEmail" list="dlEmails" type="text" inputmode="email" placeholder="Email (es. m.rossi@cliente.it)" aria-label="Indirizzo email">
+            <input id="fPhone" list="dlPhones" type="tel" placeholder="Telefono" aria-label="Telefono">
+          </div>
+          <div class="frow">
+            <input id="fContact" list="dlContacts" placeholder="Nome e cognome" aria-label="Contatto">
+            <input id="fCompany" list="dlCompanies" placeholder="Azienda" aria-label="Azienda">
+          </div>
+          <div class="frow">
+            <input id="fSubject" placeholder="Oggetto (es. offerta rettifica cilindrica)" aria-label="Oggetto">
+          </div>
+          <label class="lbl" for="fNotes">Descrizione</label>
+          <textarea id="fNotes" placeholder="Cosa è successo, esito, prossimi passi" style="margin-bottom:8px"></textarea>
+          <div class="frow">
+            <label class="fld"><span class="lbl">Data</span><input id="fDate" type="date"></label>
+            <label class="fld"><span class="lbl">Ora</span><input id="fTime" type="time"></label>
+          </div>
+          <div class="fu-row">
+            <label><input type="checkbox" id="fFu"> Crea follow-up</label>
+            <div class="fu-fields" id="fuFields" hidden>
+              <input id="fFuText" placeholder="Cosa fare" aria-label="Testo follow-up">
+              <input id="fFuDate" type="date" aria-label="Scadenza follow-up" style="flex:0 1 160px">
+            </div>
+          </div>
+          <div class="factions" id="factions"></div>
+        </form>
+        <datalist id="dlContacts"></datalist><datalist id="dlCompanies"></datalist><datalist id="dlEmails"></datalist><datalist id="dlPhones"></datalist>
+      </section>
+    <div class="tri">
+      <section class="panel" aria-labelledby="hCalls"><div class="panel-h"><h2 id="hCalls" class="ttl">${IC.call}Telefonate</h2><span class="cnt mono" id="nCalls"></span></div><div id="impCalls"></div></section>
+      <section class="panel" aria-labelledby="hIn"><div class="panel-h"><h2 id="hIn" class="ttl">${IC.inbox}Posta in arrivo</h2><span class="cnt mono" id="nIn"></span></div><div id="impIn"></div></section>
+      <section class="panel" aria-labelledby="hOut"><div class="panel-h"><h2 id="hOut" class="ttl">${IC.sent}Posta inviata</h2><span class="cnt mono" id="nOut"></span></div><div id="impOut"></div></section>
+      <section class="panel" aria-labelledby="hWa"><div class="panel-h"><h2 id="hWa" class="ttl">${IC.wa}WhatsApp</h2><span class="cnt mono" id="nWa"></span></div><div id="impWa"></div></section>
+    </div>
+    <section class="panel" aria-labelledby="hFu"><div class="panel-h"><h2 id="hFu" class="ttl">${IC.fu}Follow-up</h2><button class="btn sm" id="bNewFu">+ Nuovo</button></div><div id="fuList" class="fug"></div></section>
+  </div>`;
+  $("#todayLbl").textContent=fmtDay(today());
+  document.querySelectorAll(".type").forEach(b=>b.onclick=()=>{S.form.type=b.dataset.t;syncTypes();defaultFuText()});
+  $("#fFu").onchange=()=>{$("#fuFields").hidden=!$("#fFu").checked;if($("#fFu").checked){if(!$("#fFuDate").value)$("#fFuDate").value=addWorkDays(today(),3);defaultFuText()}};
+  $("#fContact").oninput=()=>{defaultFuText(true);autoCompany()};
+  $("#fEmail").oninput=()=>autoFromEmail();
+  $("#fPhone").oninput=()=>autoFromPhone();
+  $("#af").onsubmit=e=>{e.preventDefault();saveAct(e.submitter&&e.submitter.dataset.mode)};
+  $("#dPick").onchange=()=>{if($("#dPick").value)setDay($("#dPick").value)};
+  $("#dPrev").onclick=()=>setDay(addDays(S.day,-1));$("#dNext").onclick=()=>setDay(addDays(S.day,1));$("#dToday").onclick=()=>setDay(today());
+  $("#q").oninput=()=>{S.q=$("#q").value.trim().toLowerCase();renderLists()};
+  $("#bLock").onclick=lock;$("#bPin").onclick=dlgPin;$("#bCheck").onclick=doCheckin;$("#bNewFu").onclick=()=>dlgFu();
+  $("#bExport").onclick=exportCsv;
+  document.querySelectorAll(".env").forEach(b=>b.onclick=()=>setEnv(b.dataset.env));
+  let env="diary";try{env=localStorage.getItem("crm-env")||"diary"}catch(x){}
+  setEnv(location.hash==="#checkin"||location.hash==="#attivita"?"work":env,true);
+  resetForm();renderLists();
+  if(location.hash==="#checkin"){$("#fContact").focus();renderBanner(true)}
+}
+function setEnv(e,noSave){S.env=e;["diary","work"].forEach(k=>{const on=k===e;$(k==="diary"?"#envDiary":"#envWork").hidden=!on;const t=$(k==="diary"?"#tabDiary":"#tabWork");t.setAttribute("aria-selected",String(on));t.tabIndex=on?0:-1});
+  if(!noSave)try{localStorage.setItem("crm-env",e)}catch(x){}}
+function syncTypes(){document.querySelectorAll(".type").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===S.form.type)))}
+let fuTouched=false;
+function defaultFuText(fromContact){const el=$("#fFuText");if(!el||(fuTouched&&!fromContact))return;if(fuTouched)return;
+  const c=$("#fContact").value.trim();const v={call:"Richiamare",email_out:"Verificare risposta di",email_in:"Rispondere a",meeting:"Inviare riepilogo a",note:"Ricontattare"}[S.form.type];
+  el.value=c?`${v} ${c}`:"";}
+function autoCompany(){const c=$("#fContact").value.trim().toLowerCase();if(!c)return;const m=S.recent.find(a=>(a.contact||"").toLowerCase()===c);if(!m)return;
+  if(!$("#fCompany").value&&m.company)$("#fCompany").value=m.company;if(!$("#fEmail").value&&m.email)$("#fEmail").value=m.email;if(!$("#fPhone").value&&m.phone)$("#fPhone").value=m.phone}
+const normPh=p=>String(p||"").replace(/[^\d+]/g,"").replace(/^00/,"+");
+function autoFromPhone(){const p=normPh($("#fPhone").value);if(p.length<6)return;const m=S.recent.find(a=>a.phone&&normPh(a.phone)===p);
+  if(m){if(!$("#fContact").value&&m.contact){$("#fContact").value=m.contact;defaultFuText(true)}if(!$("#fCompany").value&&m.company)$("#fCompany").value=m.company;if(!$("#fEmail").value&&m.email)$("#fEmail").value=m.email}}
+function autoFromEmail(){const e=$("#fEmail").value.trim().toLowerCase();if(!e.includes("@"))return;const m=S.recent.find(a=>(a.email||"").toLowerCase()===e);
+  if(m){if(!$("#fContact").value&&m.contact){$("#fContact").value=m.contact;defaultFuText(true)}if(!$("#fCompany").value&&m.company)$("#fCompany").value=m.company}}
+function resetForm(){S.form.editId=null;S.form.importId=null;fuTouched=false;document.querySelectorAll(".imp.on").forEach(e=>e.classList.remove("on"));
+  ["fEmail","fPhone","fContact","fCompany","fSubject","fNotes","fFuText"].forEach(i=>$("#"+i).value="");
+  const n=new Date();$("#fDate").value=S.day||today();$("#fTime").value=S.day===today()||!S.day?tstr(n):"09:00";
+  $("#fFu").checked=false;$("#fuFields").hidden=true;$("#fFuDate").value="";$("#fFuText").oninput=()=>fuTouched=true;
+  S.form.type="call";syncTypes();$("#editLbl").textContent="";
+  $("#factions").innerHTML=`<button class="btn pri" id="bSave">Registra</button>`;}
+
+async function saveAct(mode){
+  const contact=$("#fContact").value.trim(),company=$("#fCompany").value.trim(),subject=$("#fSubject").value.trim(),notes=$("#fNotes").value.trim(),email=$("#fEmail").value.trim(),phone=$("#fPhone").value.trim();
+  if(!contact&&!company&&!subject&&!notes&&!email&&!phone){toast("Scrivi almeno un contatto, un'azienda o un oggetto.");$("#fContact").focus();return}
+  const date=$("#fDate").value||today(),time=$("#fTime").value||tstr(new Date());
+  const ts=new Date(date+"T"+time).getTime();
+  const body={type:S.form.type,contact,email,phone,company,subject,notes,date,time,ts};
+  try{
+    let id=S.form.editId;
+    if(id){const old={...(S.recent.concat(S.acts).find(a=>a.id===id)||{})};delete old.id;await S.db.doc("activities/"+id).set({...old,...body,updatedAt:Date.now()});}
+    else{const imp=S.form.importId;const r=await S.db.collection("activities").add({...body,source:imp?"import":"manual",...(imp?{importId:imp}:{}),createdAt:Date.now()});id=r.id;
+      if(imp)await S.db.doc("imports/"+imp).update({status:"logged",activityId:id})}
+    const wantFu=$("#fFu").checked||mode==="rf";
+    if(wantFu){const who=contact||company||email||phone;const missed=/persa/i.test(notes)&&S.form.type==="call";
+      const def={call:missed?"Richiamare":"Ricontattare",email_out:"Verificare risposta di",email_in:"Rispondere a",meeting:"Inviare riepilogo a",note:"Ricontattare"}[S.form.type]+" "+who;
+      const due=$("#fFuDate").value||(missed?today():addWorkDays(today(),S.form.type==="email_in"?1:3));
+      await S.db.collection("followups").add({title:$("#fFuText").value.trim()||def,contact,company,due,done:false,activityId:id,createdAt:Date.now()})}
+    toast((S.form.editId?"Attività aggiornata":"Attività registrata")+(wantFu?" con follow-up":""));
+    if(date!==S.day)setDay(date);
+    resetForm();$("#fContact").focus();
+  }catch(e){fail(e)}
+}
+function editAct(a){
+  S.form.editId=a.id;S.form.importId=null;document.querySelectorAll(".imp.on").forEach(e=>e.classList.remove("on"));S.form.type=a.type||"note";syncTypes();fuTouched=false;
+  $("#fEmail").value=a.email||"";$("#fPhone").value=a.phone||"";$("#fContact").value=a.contact||"";$("#fCompany").value=a.company||"";$("#fSubject").value=a.subject||"";$("#fNotes").value=a.notes||"";
+  $("#fDate").value=a.date||today();$("#fTime").value=a.time||"";$("#fFu").checked=false;$("#fuFields").hidden=true;
+  $("#editLbl").textContent="Modifica";
+  $("#factions").innerHTML=`<span id="delZone"><button type="button" class="btn danger" id="bDel">Elimina</button></span><button type="button" class="btn" id="bCancel">Annulla</button><button class="btn pri">Salva modifiche</button>`;
+  $("#bCancel").onclick=resetForm;
+  $("#bDel").onclick=()=>{$("#delZone").innerHTML=`<span class="confirm">Eliminare? <button type="button" class="btn danger sm" id="bDelY">Sì, elimina</button></span>`;
+    $("#bDelY").onclick=async()=>{const old={...a};delete old.id;try{await S.db.doc("activities/"+a.id).delete();resetForm();toast("Attività eliminata",()=>S.db.doc("activities/"+a.id).set(old).catch(fail))}catch(e){fail(e)}}};
+  setEnv("work");$("#af").scrollIntoView({behavior:"smooth",block:"start"});$("#fContact").focus();
+}
+async function delAct(a){const old={...a};delete old.id;
+  try{await S.db.doc("activities/"+a.id).delete();if(S.form.editId===a.id)resetForm();toast("Attività eliminata",()=>S.db.doc("activities/"+a.id).set(old).catch(fail))}catch(e){fail(e)}}
+function setDay(d){S.day=d;subDay();renderLists();if(!S.form.editId){$("#fDate").value=d}}
+
+/* ---------- Lists ---------- */
+function renderLists(){
+  if(!$("#tl"))return;
+  $("#dPick").value=S.day;
+  // stats
+  const t=today(),todayActs=S.recent.filter(a=>a.date===t);
+  const late=S.fus.filter(f=>f.due<t).length,due=S.fus.filter(f=>f.due===t).length;
+  const cnt=k=>todayActs.filter(a=>a.type===k).length;
+  $("#stats").innerHTML=`<div class="stat"><b class="mono">${cnt("call")}</b><span>telefonate oggi</span></div>
+   <div class="stat"><b class="mono">${cnt("email_out")+cnt("email_in")}</b><span>email oggi</span></div>
+   <div class="stat ${late?"warn":""}"><b class="mono">${late}</b><span>follow-up scaduti</span></div>
+   <div class="stat"><b class="mono">${due}</b><span>in scadenza oggi</span></div>`;
+  // datalists
+  const uniq=f=>[...new Set(S.recent.map(f).filter(Boolean))].slice(0,200);
+  $("#dlContacts").innerHTML=uniq(a=>a.contact).map(v=>`<option value="${esc(v)}">`).join("");
+  $("#dlCompanies").innerHTML=uniq(a=>a.company).map(v=>`<option value="${esc(v)}">`).join("");
+  $("#dlEmails").innerHTML=uniq(a=>a.email).map(v=>`<option value="${esc(v)}">`).join("");
+  $("#dlPhones").innerHTML=uniq(a=>a.phone).map(v=>`<option value="${esc(v)}">`).join("");
+  // timeline
+  let list,label;
+  if(S.q){list=S.recent.filter(a=>[a.contact,a.email,a.phone,a.company,a.subject,a.notes].join(" ").toLowerCase().includes(S.q));label=`${list.length} risultati nelle ultime 400 attività`}
+  else{list=S.acts;label=fmtDay(S.day)+(S.day===t?" · oggi":"")}
+  $("#dayLbl").textContent=label;
+  $("#tl").innerHTML=list.length?list.map(a=>{const ty=TYPES[a.type]||TYPES.note;return `<li class="ent" data-id="${a.id}" tabindex="0" style="--c:${ty.c}">
+    <span class="t">${esc(a.time||"")}${S.q?`<br><span class="when">${fmtShort(a.date)}</span>`:""}</span><span class="dot"></span>
+    <div class="body"><div><span class="who">${esc(a.contact||a.company||a.email||"—")}</span>${a.contact&&a.company?` <span class="co">· ${esc(a.company)}</span>`:""}</div>
+    ${a.email||a.phone?`<div class="addr">${esc([a.email,a.phone].filter(Boolean).join(" · "))}</div>`:""}
+    ${a.subject?`<div class="subj">${esc(a.subject)}</div>`:""}${a.notes?`<div class="nt">${esc(a.notes)}</div>`:""}</div>
+    <div class="ent-side"><span class="tag">${ty.l}${a.source==="import"?" ·&nbsp;import":""}</span><span class="delz"><button type="button" class="btn ghost sm del" aria-label="Elimina attività">Elimina</button></span></div></li>`}).join("")
+    :`<li class="empty">${S.q?"Nessuna attività trovata.":"Nessuna attività registrata in questo giorno. Per aggiungere telefonate, email e incontri vai nella sezione Attività."}</li>`;
+  document.querySelectorAll(".ent").forEach(li=>{const a=list.find(x=>x.id===li.dataset.id);li.onclick=()=>editAct(a);li.onkeydown=e=>{if(e.key==="Enter"&&e.target===li)editAct(a)};
+    const z=li.querySelector(".delz");li.querySelector(".del").onclick=e=>{e.stopPropagation();
+      z.innerHTML=`<span class="confirm"><button type="button" class="btn danger sm" data-y>Sì, elimina</button><button type="button" class="btn ghost sm" data-n>No</button></span>`;
+      z.onclick=ev=>ev.stopPropagation();
+      z.querySelector("[data-n]").onclick=()=>renderLists();
+      z.querySelector("[data-y]").onclick=()=>delAct(a)}});
+  renderFus();renderImps();renderBanner();
+  const pend=S.imps.length+S.fus.filter(f=>f.due<=t).length,bd=$("#workBadge");if(bd){bd.hidden=!pend;bd.textContent=pend;bd.title=pend+" elementi da gestire"}
+}
+function renderFus(){
+  const t=today(),wk=addDays(t,7);
+  const g=[["Scaduti",f=>f.due<t],["Oggi",f=>f.due===t],["Prossimi 7 giorni",f=>f.due>t&&f.due<=wk],["Più avanti",f=>f.due>wk]];
+  const fus=[...S.fus].sort((a,b)=>(a.due||"").localeCompare(b.due||""));
+  if(!fus.length){$("#fuList").innerHTML=`<p class="empty">Nessun follow-up aperto. Spunta "Crea follow-up" quando registri un'attività.</p>`;return}
+  $("#fuList").innerHTML=g.map(([n,fn])=>{const xs=fus.filter(fn);if(!xs.length)return"";return `<h3>${n} <span class="n">${xs.length}</span></h3>`+xs.map(f=>{
+    const cls=f.due<t?"late":f.due===t?"today":"";return `<div class="fu" data-id="${f.id}"><input type="checkbox" aria-label="Segna come fatto: ${esc(f.title)}">
+    <div><div class="ft">${esc(f.title)}</div><div class="fm"><span class="due ${cls}">${f.due===t?"oggi":fmtShort(f.due)}</span>${f.company?`<span>${esc(f.company)}</span>`:""}
+    <span class="acts"><button class="btn ghost sm" data-a="d1">+1 g</button><button class="btn ghost sm" data-a="d7">+1 sett</button><button class="btn ghost sm" data-a="ed">Modifica</button></span></div></div></div>`}).join("")}).join("");
+  document.querySelectorAll(".fu").forEach(el=>{const f=S.fus.find(x=>x.id===el.dataset.id);const ref=S.db.doc("followups/"+f.id);
+    el.querySelector("input").onchange=async()=>{try{await ref.update({done:true,doneAt:Date.now()});toast("Follow-up completato",()=>ref.update({done:false}).catch(fail))}catch(e){fail(e)}};
+    el.querySelectorAll("[data-a]").forEach(b=>b.onclick=async()=>{const a=b.dataset.a;if(a==="ed")return dlgFu(f);
+      const base=f.due<t?t:f.due;try{await ref.update({due:a==="d1"?addWorkDays(base,1):addDays(base,7)})}catch(e){fail(e)}})});
+}
+const isCall=m=>m.kind==="call";
+const isWa=m=>m.kind==="whatsapp";
+const isMail=m=>!isCall(m)&&!isWa(m);
+const impAddr=m=>m.address||(isCall(m)?(m.number||""):((m.direction==="out"?m.to:m.from)||""));
+const waText=m=>(m.messages||[]).slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).map(x=>(x.from&&x.from!==m.contact?x.from+": ":"")+x.text).join("\n")||m.snippet||"";
+const fmtDur=s=>{s=+s||0;if(s<60)return s+" s";const m=Math.floor(s/60),r=s%60;return m+" min"+(r?" "+r+" s":"")};
+const CALLDIR={in:"in entrata",out:"in uscita",missed:"persa"};
+function impCard(m){const out=m.direction==="out",call=isCall(m),addr=impAddr(m);return `<div class="imp" data-id="${esc(m.id)}">
+    <div class="ih"><span class="mono" style="font-size:12px;color:var(--muted)">${esc(m.date?fmtShort(m.date):"")} ${esc(m.time||"")}</span>${call?`<span class="tag" style="--c:${m.direction==="missed"?"var(--warn)":TYPES.call.c}">${CALLDIR[m.direction]||""}${m.direction!=="missed"?" · "+fmtDur(m.duration):""}</span>`:""}${isWa(m)?`<span class="tag" style="--c:${TYPES.whatsapp.c}">${Math.max(1,(m.messages||[]).length)} messaggi</span>`:""}</div>
+    <div><strong>${esc(m.contact||addr)}</strong>${m.company?` · <span class="co">${esc(m.company)}</span>`:""}</div>
+    ${addr&&!isWa(m)?`<div class="addr">${call?"":out?"a ":"da "}${esc(addr)}</div>`:""}
+    ${isMail(m)?`<div class="subj">${esc(m.subject||"(senza oggetto)")}</div>`:""}
+    ${isWa(m)?(m.messages||[]).slice(-3).map(x=>`<div class="sn">${esc(x.text)}</div>`).join(""):(m.snippet?`<div class="sn">${esc(m.snippet)}</div>`:"")}
+    <div class="acts"><button class="btn sm pri" data-a="imp">Importa</button><button class="btn sm ghost" data-a="x">Ignora</button></div></div>`}
+function renderImps(){
+  const calls=S.imps.filter(isCall),ins=S.imps.filter(m=>isMail(m)&&m.direction!=="out"),outs=S.imps.filter(m=>isMail(m)&&m.direction==="out"),was=S.imps.filter(isWa);
+  const fill=(box,n,xs,empty)=>{$(n).textContent=xs.length?xs.length+" da registrare":"";$(box).innerHTML=xs.length?xs.map(impCard).join(""):`<p class="empty">${empty}</p>`};
+  fill("#impCalls","#nCalls",calls,"Nessuna telefonata da registrare. Le chiamate di lavoro arrivano dal telefono.");
+  fill("#impIn","#nIn",ins,"Nessuna email ricevuta da registrare.");
+  fill("#impOut","#nOut",outs,"Nessuna email inviata da registrare.");
+  fill("#impWa","#nWa",was,"Nessuna chat WhatsApp da registrare.");
+  document.querySelectorAll(".imp").forEach(el=>{const m=S.imps.find(x=>x.id===el.dataset.id);
+    el.classList.toggle("on",el.dataset.id===S.form.importId);
+    el.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>takeImport(m,b.dataset.a))});
+}
+function loadImport(m){
+  resetForm();const call=isCall(m),out=m.direction==="out",addr=impAddr(m);
+  S.form.importId=m.id;S.form.type=call?"call":isWa(m)?"whatsapp":out?"email_out":"email_in";syncTypes();
+  if(call)$("#fPhone").value=addr;else if(isMail(m))$("#fEmail").value=addr;else if(m.email)$("#fEmail").value=m.email;
+  $("#fContact").value=m.contact||"";$("#fCompany").value=m.company||"";$("#fSubject").value=isMail(m)?(m.subject||""):"";
+  $("#fNotes").value=call?(m.direction==="missed"?"Chiamata persa":`Telefonata ${CALLDIR[m.direction]}, ${fmtDur(m.duration)}`):isWa(m)?waText(m):(m.snippet||"");
+  $("#fDate").value=m.date||today();$("#fTime").value=m.time||"";
+  if(!$("#fContact").value)autoFromPhone(),autoFromEmail();
+  $("#editLbl").textContent=call?"Telefonata importata":isWa(m)?"Chat WhatsApp importata":"Email importata";
+  $("#factions").innerHTML=`<button type="button" class="btn ghost" id="bImpX">Ignora</button><button class="btn" data-mode="rf">Registra + follow-up</button><button class="btn pri" data-mode="r">Registra</button>`;
+  $("#bImpX").onclick=()=>{resetForm();takeImport(m,"x")};
+  document.querySelectorAll(".imp").forEach(e=>e.classList.toggle("on",e.dataset.id===m.id));
+  setEnv("work");$("#af").scrollIntoView({behavior:"smooth",block:"start"});$("#fNotes").focus();
+}
+async function takeImport(m,a){
+  if(a==="imp")return loadImport(m);
+  const ref=S.db.doc("imports/"+m.id),call=isCall(m);
+  try{
+    if(a==="x"){await ref.update({status:"ignored"});return toast(call?"Telefonata ignorata":isWa(m)?"Chat ignorata":"Email ignorata",()=>ref.update({status:"new"}).catch(fail))}
+    const out=m.direction==="out",date=m.date||today(),time=m.time||"09:00",addr=impAddr(m),contact=m.contact||addr,ts=new Date(date+"T"+time).getTime();
+    let act;
+    if(call){act={type:"call",contact,phone:addr,email:"",company:m.company||"",subject:"",notes:m.direction==="missed"?"Chiamata persa":`Telefonata ${CALLDIR[m.direction]}, ${fmtDur(m.duration)}`,date,time,ts}}
+    else if(isWa(m))act={type:"whatsapp",contact,email:m.email||"",phone:"",company:m.company||"",subject:"",notes:waText(m),date,time,ts};
+    else act={type:out?"email_out":"email_in",contact,email:addr,company:m.company||"",subject:m.subject||"",notes:m.snippet||"",date,time,ts};
+    const r=await S.db.collection("activities").add({...act,source:"import",importId:m.id,createdAt:Date.now()});
+    if(a==="rf"){const title=call?(m.direction==="missed"?"Richiamare ":"Ricontattare ")+contact:(out?"Verificare risposta di ":"Rispondere a ")+contact;
+      await S.db.collection("followups").add({title,contact,company:m.company||"",due:call&&m.direction==="missed"?today():addWorkDays(today(),out?3:1),done:false,activityId:r.id,createdAt:Date.now()})}
+    await ref.update({status:"logged",activityId:r.id});toast((call?"Telefonata registrata":"Email registrata")+(a==="rf"?" con follow-up":""));
+  }catch(e){fail(e)}
+}
+
+/* ---------- Check-in ---------- */
+function renderBanner(force){
+  const el=$("#banner");if(!el||!S.settings)return;
+  const last=S.settings.lastCheckin||0,h=new Date().getHours(),gap=(Date.now()-last)/36e5;
+  const show=force||(gap>=(S.settings.checkinHours||CHECKIN_H)&&h>=8&&h<20);
+  if(!show){el.innerHTML="";return}
+  const since=new Date(last),added=S.recent.filter(a=>(a.createdAt||a.ts)>last).length;
+  const sinceTxt=dstr(since)===today()?"dalle "+tstr(since):"da "+fmtShort(dstr(since));
+  el.innerHTML=`<div class="checkin" role="status"><p><strong>Fai il punto:</strong> cosa hai fatto ${sinceTxt}? Telefonate, email, incontri. ${added?`Hai già registrato ${added} attività.`:""}</p>
+  <div style="display:flex;gap:6px"><button class="btn sm" id="ciAdd">Aggiungi attività</button><button class="btn sm pri" id="ciDone">Fatto, sono in pari</button></div></div>`;
+  $("#ciAdd").onclick=()=>{setEnv("work");$("#af").scrollIntoView({behavior:"smooth"});$("#fContact").focus()};
+  $("#ciDone").onclick=doCheckin;
+}
+async function doCheckin(){
+  toast("Fatto. Le nuove telefonate, email e WhatsApp arrivano dal telefono ogni 30 minuti.");
+  try{await S.db.doc("settings/main").update({lastCheckin:Date.now()});if(location.hash==="#checkin")history.replaceState(null,"",location.pathname+location.search)}catch(e){fail(e)}}
+
+/* ---------- Dialogs ---------- */
+function closeDlg(){$("#ovl").innerHTML=""}
+function dlgFu(f){
+  const isNew=!f;f=f||{title:"",contact:"",company:"",due:addWorkDays(today(),1)};
+  $("#ovl").innerHTML=`<div class="ov"><form class="dlg" id="df"><h2>${isNew?"Nuovo follow-up":"Modifica follow-up"}</h2>
+  <input id="dT" placeholder="Cosa fare" value="${esc(f.title)}" aria-label="Cosa fare">
+  <div class="frow"><input id="dC" list="dlContacts" placeholder="Contatto" value="${esc(f.contact)}" aria-label="Contatto"><input id="dCo" list="dlCompanies" placeholder="Azienda" value="${esc(f.company)}" aria-label="Azienda"></div>
+  <input id="dD" type="date" value="${esc(f.due)}" aria-label="Scadenza">
+  <div class="factions">${isNew?"":`<span id="dz"><button type="button" class="btn danger" id="dDel">Elimina</button></span>`}<button type="button" class="btn" id="dX">Annulla</button><button class="btn pri">Salva</button></div></form></div>`;
+  $("#dT").focus();$("#dX").onclick=closeDlg;
+  if(!isNew)$("#dDel").onclick=()=>{$("#dz").innerHTML=`<button type="button" class="btn danger" id="dDelY">Conferma eliminazione</button>`;$("#dDelY").onclick=async()=>{try{await S.db.doc("followups/"+f.id).delete();closeDlg();toast("Follow-up eliminato")}catch(e){fail(e)}}};
+  $("#df").onsubmit=async e=>{e.preventDefault();const title=$("#dT").value.trim();if(!title)return $("#dT").focus();
+    const body={title,contact:$("#dC").value.trim(),company:$("#dCo").value.trim(),due:$("#dD").value||today()};
+    try{if(isNew)await S.db.collection("followups").add({...body,done:false,createdAt:Date.now()});else await S.db.doc("followups/"+f.id).update(body);closeDlg();toast("Follow-up salvato")}catch(err){fail(err)}};
+}
+function dlgPin(){
+  $("#ovl").innerHTML=`<div class="ov"><form class="dlg" id="df"><h2>Impostazioni</h2>
+  <label class="lbl" for="h">Promemoria "Fai il punto" ogni</label><select id="h">${[2,3,4].map(x=>`<option value="${x}" ${x===(S.settings.checkinHours||CHECKIN_H)?"selected":""}>${x} ore</option>`).join("")}</select>
+  <p class="lbl" style="margin:8px 0 0">Account</p><p style="margin:0">${esc(S.user&&S.user.email||"")}</p>
+  <p class="lbl" style="margin:8px 0 0">Importa dati</p>
+  <p style="margin:0;font-size:13px;color:var(--muted)">Carica il file JSON del vecchio diario per copiare attività e follow-up.</p>
+  <input type="file" id="fImp" accept="application/json,.json">
+  <div class="err" id="er"></div><div class="factions"><button type="button" class="btn" id="dX">Chiudi</button><button class="btn pri">Salva</button></div></form></div>`;
+  $("#dX").onclick=closeDlg;
+  $("#fImp").onchange=async e=>{const f=e.target.files[0];if(!f)return;$("#er").textContent="Importo…";
+    try{const n=await importJson(JSON.parse(await f.text()));$("#er").textContent=`Importate ${n.a} attività e ${n.f} follow-up.`}
+    catch(err){console.error(err);$("#er").textContent="File non valido o importazione non riuscita."}};
+  $("#df").onsubmit=async e=>{e.preventDefault();
+    try{await S.db.doc("settings/main").update({checkinHours:+$("#h").value});closeDlg();toast("Impostazioni salvate")}catch(err){fail(err)}};
+}
+async function importJson(j){
+  const {fs,base}=S.db.raw;let a=0,f=0;
+  const put=async(col,list)=>{for(let i=0;i<list.length;i+=400){const b=writeBatch(fs);
+    for(const x of list.slice(i,i+400)){const {id,...rest}=x;b.set(id?doc(fs,...base,col,id):doc(collection(fs,...base,col)),rest)}
+    await b.commit()}};
+  const acts=j.activities||[],fus=j.followups||[];
+  await put("activities",acts);a=acts.length;await put("followups",fus);f=fus.length;
+  return {a,f};
+}
+async function exportCsv(){
+  try{const s=await S.db.collection("activities").orderBy("ts","asc").get();
+    const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+    const rows=[["Data","Ora","Tipo","Contatto","Email","Telefono","Azienda","Oggetto","Note"]].concat(s.docs.map(d=>{const a=d.data();return [a.date,a.time,(TYPES[a.type]||{}).l,a.contact,a.email,a.phone,a.company,a.subject,a.notes]}));
+    const blob=new Blob(["\ufeff"+rows.map(r=>r.map(q).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+    const u=URL.createObjectURL(blob),l=document.createElement("a");l.href=u;l.download="diario-"+today()+".csv";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);
+  }catch(e){console.error(e);toast("Esportazione non riuscita.")}
+}
+
+</script>
+</body>
+</html>
