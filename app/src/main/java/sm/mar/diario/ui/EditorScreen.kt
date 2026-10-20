@@ -48,7 +48,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import sm.mar.diario.importers.ContactLookup
 import sm.mar.diario.data.ActType
 import sm.mar.diario.data.Activity
 import sm.mar.diario.data.Dates
@@ -79,16 +81,32 @@ fun EditorScreen(ui: UiState, seed: EditorSeed, recent: List<Activity>) {
     val imp = seed.import
 
     // completa nome e azienda da attività precedenti con la stessa email o lo stesso numero
-    LaunchedEffect(Unit) {
-        if (contact.isBlank() || company.isBlank()) {
-            val match = recent.firstOrNull {
-                (email.isNotBlank() && it.email.equals(email, true)) || (phone.isNotBlank() && it.phone.isNotBlank() && normPhone(it.phone) == normPhone(phone))
-            }
-            if (match != null) {
-                if (contact.isBlank()) contact = match.contact
-                if (company.isBlank()) company = match.company
+    var filledFrom by remember { mutableStateOf("") }
+    LaunchedEffect(email, phone, contact) {
+        delay(600)
+        val filled = mutableListOf<String>()
+        // 1) attività già registrate con la stessa email, lo stesso numero o lo stesso nome
+        val match = recent.firstOrNull {
+            (email.isNotBlank() && it.email.equals(email.trim(), true)) ||
+                (phone.isNotBlank() && it.phone.isNotBlank() && normPhone(it.phone) == normPhone(phone)) ||
+                (contact.isNotBlank() && it.contact.equals(contact.trim(), true))
+        }
+        if (match != null) {
+            if (contact.isBlank() && match.contact.isNotBlank()) { contact = match.contact; filled += "nome" }
+            if (company.isBlank() && match.company.isNotBlank()) { company = match.company; filled += "azienda" }
+            if (email.isBlank() && match.email.isNotBlank()) { email = match.email; filled += "email" }
+            if (phone.isBlank() && match.phone.isNotBlank()) { phone = match.phone; filled += "telefono" }
+        }
+        // 2) rubrica del telefono
+        if (contact.isBlank() || company.isBlank() || email.isBlank() || phone.isBlank()) {
+            ContactLookup.find(ctx, email, phone, contact)?.let { c ->
+                if (contact.isBlank() && c.name.isNotBlank()) { contact = c.name; filled += "nome" }
+                if (company.isBlank() && c.company.isNotBlank()) { company = c.company; filled += "azienda" }
+                if (email.isBlank() && c.email.isNotBlank()) { email = c.email; filled += "email" }
+                if (phone.isBlank() && c.phone.isNotBlank()) { phone = c.phone; filled += "telefono" }
             }
         }
+        if (filled.isNotEmpty()) filledFrom = "Completati in automatico: " + filled.distinct().joinToString(", ")
     }
 
     fun defaultFu(): String {
@@ -205,6 +223,7 @@ fun EditorScreen(ui: UiState, seed: EditorSeed, recent: List<Activity>) {
                 value = company, onValueChange = { company = it }, label = { Text("Azienda") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier.fillMaxWidth(),
             )
+            if (filledFrom.isNotEmpty()) Text(filledFrom, style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.ok)
             OutlinedTextField(
                 value = subject, onValueChange = { subject = it }, label = { Text("Oggetto") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), modifier = Modifier.fillMaxWidth(),
