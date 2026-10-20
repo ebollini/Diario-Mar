@@ -24,7 +24,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - name: SDK Android
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -43,6 +46,7 @@ jobs:
           git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
           git checkout --orphan ci-log
           git rm -rf --cached . >/dev/null
+          touch build.log
           grep -E "^e: |error:|FAILURE|What went wrong|> " build.log | head -300 > errori.txt || true
           tail -400 build.log > build-tail.log
           git add -f errori.txt build-tail.log
