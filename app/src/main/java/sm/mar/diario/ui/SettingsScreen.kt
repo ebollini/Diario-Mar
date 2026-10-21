@@ -88,6 +88,7 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
     var testMsg by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
     var lock by remember { mutableStateOf(prefs.lockEnabled) }
+    var ai by remember { mutableStateOf(prefs.aiEnabled) }
     var newAddr by remember { mutableStateOf("") }
 
     fun saveMail() {
@@ -152,6 +153,14 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
             }
             testMsg?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             if (prefs.lastMailError.isNotBlank() && testMsg == null) Text("Ultimo errore: ${prefs.lastMailError}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+
+        Section("Riassunti delle email") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Scrivi nella descrizione un riassunto breve dell'email, fatto con Gemini", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(ai, { ai = it; prefs.aiEnabled = it })
+            }
+            if (prefs.lastAiError.isNotBlank()) Text(prefs.lastAiError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
         Section("Promemoria \"Fai il punto\"") {

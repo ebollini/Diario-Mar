@@ -95,19 +95,24 @@ object MailImporter {
                     val addr = other.address?.lowercase() ?: continue
                     if (addr in ignore) continue
                     if (dir == "in" && autoSender.containsMatchIn(addr)) continue
+                    val id = "mail-$dir-$validity-${uidFolder.getUID(m)}"
+                    if (Repo.inboxStatus(id) != null) continue
+                    val contactName = other.personal?.trim()?.trim('"', '\'')?.takeIf { it.isNotBlank() } ?: nameFromAddress(addr)
+                    val body = snippet(m, 5000)
+                    val summary = Summarizer.summarizeEmail(ctx, dir, contactName, m.subject ?: "", body)
                     val allTo = m.getRecipients(Message.RecipientType.TO)?.joinToString(", ") { addrOf(it) } ?: ""
                     val data = mapOf<String, Any>(
                         "kind" to "mail", "direction" to dir,
                         "address" to addr,
                         "from" to (m.from?.firstOrNull()?.let { addrOf(it) } ?: ""),
                         "to" to allTo,
-                        "contact" to (other.personal?.trim()?.trim('"', '\'')?.takeIf { it.isNotBlank() } ?: nameFromAddress(addr)),
+                        "contact" to contactName,
                         "company" to companyOf(addr),
                         "subject" to (m.subject ?: ""),
-                        "snippet" to snippet(m),
+                        "snippet" to (summary ?: body.take(280)),
+                        "ai" to (summary != null),
                         "date" to Dates.dateOf(received), "time" to Dates.timeOf(received), "ts" to received,
                     )
-                    val id = "mail-$dir-$validity-${uidFolder.getUID(m)}"
                     if (Repo.putInboxIfAbsent(id, data)) added++
                 }
                 if (dir == "in") p.lastMailIn = newest else p.lastMailOut = newest
@@ -151,7 +156,7 @@ object MailImporter {
         return main.replace('-', ' ').replaceFirstChar { it.uppercase() }
     }
 
-    private fun snippet(m: Message): String = runCatching {
+    private fun snippet(m: Message, max: Int = 280): String = runCatching {
         val text = textOf(m) ?: return@runCatching ""
         val lines = text.lines().map { it.trim() }
         val out = StringBuilder()
@@ -161,9 +166,9 @@ object MailImporter {
             if (l.isEmpty()) continue
             if (out.isNotEmpty()) out.append(' ')
             out.append(l)
-            if (out.length > 280) break
+            if (out.length > max) break
         }
-        out.toString().take(280)
+        out.toString().take(max)
     }.getOrDefault("")
 
     private fun textOf(p: Part): String? {

@@ -52,6 +52,13 @@ class Prefs(ctx: Context) {
         get() = plain.getString("lastMailError", "") ?: ""
         set(v) = plain.edit().putString("lastMailError", v).apply()
 
+    var aiEnabled: Boolean
+        get() = plain.getBoolean("ai", true)
+        set(v) = plain.edit().putBoolean("ai", v).apply()
+    var lastAiError: String
+        get() = plain.getString("lastAiError", "") ?: ""
+        set(v) = plain.edit().putString("lastAiError", v).apply()
+
     var lockEnabled: Boolean
         get() = plain.getBoolean("lock", true)
         set(v) = plain.edit().putBoolean("lock", v).apply()
