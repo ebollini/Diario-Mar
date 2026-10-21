@@ -172,6 +172,11 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
             }
         }
 
+        Section("Anagrafiche") {
+            Text("Completa numeri, email e aziende mancanti nelle attività già registrate usando la rubrica del telefono. Gli abbinamenti non certi ti vengono proposti da confermare.", style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.muted)
+            FilledTonalButton(onClick = { ui.enrich = true }) { Text("Completa anagrafiche") }
+        }
+
         Section("Esclusi dall'importazione") {
             ExcludedList("Numeri", settings.ignoreNumbers) { scope.launch { runCatching { Repo.removeFromList("ignoreNumbers", it) } } }
             ExcludedList("Chat WhatsApp", settings.ignoreChats) { scope.launch { runCatching { Repo.removeFromList("ignoreChats", it) } } }

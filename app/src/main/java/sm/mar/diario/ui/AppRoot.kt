@@ -43,6 +43,7 @@ data class EditorSeed(
 class UiState {
     var tab by mutableStateOf("diary")
     var editor by mutableStateOf<EditorSeed?>(null)
+    var enrich by mutableStateOf(false)
     var day by mutableStateOf(Dates.today())
     val snackbar = SnackbarHostState()
     var scope: CoroutineScope? = null
@@ -69,6 +70,11 @@ fun AppRoot(ui: UiState) {
     val today = Dates.today()
     val dueFus = fus.count { it.due <= today }
 
+    if (ui.enrich) {
+        BackHandler { ui.enrich = false }
+        EnrichScreen(ui)
+        return
+    }
     val seed = ui.editor
     if (seed != null) {
         BackHandler { ui.editor = null }

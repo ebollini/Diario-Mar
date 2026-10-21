@@ -73,6 +73,13 @@ object Repo {
         return ref.id
     }
 
+    suspend fun allActivities(): List<Activity> =
+        col("activities").get().await().documents.map { Activity.from(it.id, it.data.orEmpty()) }
+
+    fun updateActivityFields(id: String, fields: Map<String, Any>) {
+        col("activities").document(id).update(fields + mapOf("updatedAt" to System.currentTimeMillis()))
+    }
+
     fun deleteActivity(id: String) { col("activities").document(id).delete() }
 
     fun restoreActivity(a: Activity) { col("activities").document(a.id).set(a.toMap()) }
