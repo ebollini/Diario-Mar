@@ -501,7 +501,7 @@ function impCard(m){const out=m.direction==="out",call=isCall(m),addr=impAddr(m)
     ${addr&&!isWa(m)?`<div class="addr">${call?"":out?"a ":"da "}${esc(addr)}</div>`:""}
     ${isMail(m)?`<div class="subj">${esc(m.subject||"(senza oggetto)")}</div>`:""}
     ${isWa(m)?(m.messages||[]).slice(-3).map(x=>`<div class="sn">${esc(x.text)}</div>`).join(""):(m.snippet?`<div class="sn">${esc(m.snippet)}</div>`:"")}
-    <div class="acts"><button class="btn sm pri" data-a="imp">Importa</button><button class="btn sm ghost" data-a="x">Ignora</button></div></div>`}
+    <div class="acts"><button class="btn sm pri" data-a="imp">Importa</button><button class="btn sm ghost" data-a="x">Ignora</button><button class="btn sm ghost" data-a="bl" title="Non proporre più questo contatto">Blacklist</button></div></div>`}
 function renderImps(){
   const calls=S.imps.filter(isCall),ins=S.imps.filter(m=>isMail(m)&&m.direction!=="out"),outs=S.imps.filter(m=>isMail(m)&&m.direction==="out"),was=S.imps.filter(isWa);
   const fill=(box,n,xs,empty)=>{$(n).textContent=xs.length?xs.length+" da registrare":"";$(box).innerHTML=xs.length?xs.map(impCard).join(""):`<p class="empty">${empty}</p>`};
@@ -531,6 +531,16 @@ async function takeImport(m,a){
   if(a==="imp")return loadImport(m);
   const ref=S.db.doc("imports/"+m.id),call=isCall(m);
   try{
+    if(a==="bl"){
+      const field=call?"ignoreNumbers":isWa(m)?"ignoreChats":"ignoreAddresses";
+      const val=isMail(m)?impAddr(m).toLowerCase():impAddr(m);
+      if(!val)return toast("Questo elemento non ha un numero o un indirizzo da bloccare.");
+      const list=[...new Set([...(S.settings[field]||[]),val])];
+      await S.db.doc("settings/main").update({[field]:list});
+      const same=S.imps.filter(x=>x.kind===m.kind&&impAddr(x).toLowerCase()===val.toLowerCase());
+      for(const o of same)await S.db.doc("imports/"+o.id).update({status:"ignored"});
+      return toast("Non ti verrà più proposto",async()=>{const l=(S.settings[field]||[]).filter(v=>v!==val);await S.db.doc("settings/main").update({[field]:l});for(const o of same)await S.db.doc("imports/"+o.id).update({status:"new"})});
+    }
     if(a==="x"){await ref.update({status:"ignored"});return toast(call?"Telefonata ignorata":isWa(m)?"Chat ignorata":"Email ignorata",()=>ref.update({status:"new"}).catch(fail))}
     const out=m.direction==="out",date=m.date||today(),time=m.time||"09:00",addr=impAddr(m),contact=m.contact||addr,ts=new Date(date+"T"+time).getTime();
     let act;

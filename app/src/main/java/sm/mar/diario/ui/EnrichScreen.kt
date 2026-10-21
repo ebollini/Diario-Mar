@@ -41,6 +41,13 @@ import sm.mar.diario.data.Repo
 import sm.mar.diario.importers.ContactLookup
 import sm.mar.diario.importers.ContactMatcher
 import sm.mar.diario.importers.Match
+import sm.mar.diario.importers.DiaryPerson
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 private val fieldLabel = mapOf("phone" to "telefono", "email" to "email", "company" to "azienda", "contact" to "nome")
 
@@ -70,10 +77,21 @@ fun EnrichScreen(ui: UiState) {
     var confirmedActs by remember { mutableIntStateOf(0) }
     var checked by remember { mutableIntStateOf(0) }
     val pending = remember { mutableStateListOf<Match>() }
+    val missing = remember { mutableStateListOf<DiaryPerson>() }
+    var editing by remember { mutableStateOf<DiaryPerson?>(null) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun refreshMissing() {
+        val people = runCatching { ContactMatcher.people(Repo.allActivities()) }.getOrDefault(emptyList())
+        val pendingKeys = pending.map { it.person.key }.toSet()
+        missing.clear()
+        missing += people.filter { it.key !in pendingKeys }.sortedBy { it.name.ifBlank { it.email }.lowercase() }
+    }
 
     LaunchedEffect(Unit) {
         if (!ContactLookup.allowed(ctx)) {
-            error = "Serve l'accesso alla rubrica: attivalo in Impostazioni → Accesso ai dati del telefono."
+            error = "Per gli abbinamenti automatici serve l'accesso alla rubrica: attivalo in Impostazioni → Accesso ai dati del telefono."
+            refreshMissing()
             loading = false
             return@LaunchedEffect
         }
@@ -90,6 +108,7 @@ fun EnrichScreen(ui: UiState) {
                 } else pending += m
             }
         }.onFailure { error = "Non sono riuscito a leggere i dati: ${it.message ?: "errore sconosciuto"}." }
+        refreshMissing()
         loading = false
     }
 
@@ -134,9 +153,18 @@ fun EnrichScreen(ui: UiState) {
             items(pending, key = { it.person.key }) { m ->
                 ProposalCard(
                     m,
-                    onConfirm = { confirmedActs += apply(m); pending.remove(m) },
-                    onReject = { pending.remove(m) },
+                    onConfirm = { confirmedActs += apply(m); pending.remove(m); scope.launch { refreshMissing() } },
+                    onReject = { pending.remove(m); scope.launch { refreshMissing() } },
                 )
+            }
+            if (!loading && missing.isNotEmpty()) {
+                item {
+                    Column(Modifier.padding(top = 12.dp)) {
+                        Text("Dati ancora mancanti", style = MaterialTheme.typography.titleLarge)
+                        Text("${missing.size} persone. Tocca una persona per completarla a mano.", style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.muted)
+                    }
+                }
+                items(missing, key = { "m-" + it.key }) { p -> MissingRow(p) { editing = p } }
             }
             if (!loading && error == null && pending.isEmpty()) {
                 item {
@@ -145,6 +173,48 @@ fun EnrichScreen(ui: UiState) {
             }
         }
     }
+    editing?.let { p ->
+        ManualDialog(p, onClose = { editing = null }) { name, email, phone, company ->
+            var n = 0
+            for (a in p.activities) {
+                val f = mutableMapOf<String, Any>()
+                fun put(key: String, cur: String, old: String, new: String) {
+                    if (new.isNotBlank() && cur != new && (cur.isBlank() || cur == old)) f[key] = new
+                }
+                put("contact", a.contact, p.name, name)
+                put("email", a.email, p.email, email)
+                put("phone", a.phone, p.phone, phone)
+                put("company", a.company, p.company, company)
+                if (f.isNotEmpty()) { Repo.updateActivityFields(a.id, f); n++ }
+            }
+            editing = null
+            ui.toast(if (n > 0) "Aggiornate $n attività" else "Nessuna modifica")
+            scope.launch { refreshMissing() }
+        }
+    }
+}
+
+@Composable
+private fun ManualDialog(p: DiaryPerson, onClose: () -> Unit, onSave: (String, String, String, String) -> Unit) {
+    var name by remember { mutableStateOf(p.name) }
+    var email by remember { mutableStateOf(p.email) }
+    var phone by remember { mutableStateOf(p.phone) }
+    var company by remember { mutableStateOf(p.company) }
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Completa anagrafica") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Vale per tutte le ${p.activities.size} attività di questa persona.", style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.muted)
+                OutlinedTextField(name, { name = it }, label = { Text("Nome e cognome") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(company, { company = it }, label = { Text("Azienda") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(phone, { phone = it }, label = { Text("Telefono") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(name.trim(), email.trim(), phone.trim(), company.trim()) }) { Text("Salva") } },
+        dismissButton = { TextButton(onClick = onClose) { Text("Annulla") } },
+    )
 }
 
 @Composable
@@ -178,6 +248,27 @@ private fun ProposalCard(m: Match, onConfirm: () -> Unit, onReject: () -> Unit) 
                 Button(onClick = onConfirm) { Text("Conferma") }
                 OutlinedButton(onClick = onReject) { Text("Non è lui") }
             }
+        }
+    }
+}
+
+@Composable
+private fun MissingRow(p: DiaryPerson, onClick: () -> Unit) {
+    val pal = LocalPalette.current
+    val lacks = buildList {
+        if (p.phone.isBlank()) add("telefono")
+        if (p.email.isBlank()) add("email")
+        if (p.company.isBlank()) add("azienda")
+    }
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(p.name.ifBlank { p.email.ifBlank { p.phone } }, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Mono("${p.activities.size} att.")
+            }
+            val known = listOf(p.company, p.email, p.phone).filter { it.isNotBlank() }
+            if (known.isNotEmpty()) Mono(known.joinToString(" · "))
+            Text("Manca: " + lacks.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = pal.warn)
         }
     }
 }

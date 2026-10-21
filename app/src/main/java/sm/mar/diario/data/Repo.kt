@@ -114,6 +114,23 @@ object Repo {
         return true
     }
 
+    fun blacklistField(kind: String) = when (kind) { "call" -> "ignoreNumbers"; "whatsapp" -> "ignoreChats"; else -> "ignoreAddresses" }
+
+    /** Mette in blacklist il mittente/numero/chat e ignora tutte le sue voci in attesa. Restituisce gli id ignorati. */
+    suspend fun blacklist(item: InboxItem, pending: List<InboxItem>): List<String> {
+        val value = if (item.kind == "mail") item.address.lowercase() else item.address
+        addToList(blacklistField(item.kind), value)
+        val same = pending.filter { it.kind == item.kind && it.address.equals(item.address, true) }.map { it.id }
+        same.forEach { setInboxStatus(it, "ignored") }
+        return same
+    }
+
+    suspend fun unBlacklist(item: InboxItem, ids: List<String>) {
+        val value = if (item.kind == "mail") item.address.lowercase() else item.address
+        removeFromList(blacklistField(item.kind), value)
+        ids.forEach { setInboxStatus(it, "new") }
+    }
+
     suspend fun inboxStatus(id: String): String? =
         runCatching { col("inbox").document(id).get().await().takeIf { it.exists() }?.getString("status") }.getOrNull()
 

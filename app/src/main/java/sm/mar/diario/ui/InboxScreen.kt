@@ -120,6 +120,13 @@ fun InboxScreen(ui: UiState, inbox: List<InboxItem>, settings: Settings, modifie
                         Repo.setInboxStatus(item.id, "ignored")
                         ui.toast("Ignorato", "Annulla") { Repo.setInboxStatus(item.id, "new") }
                     },
+                    onBlacklist = {
+                        scope.launch {
+                            val ids = runCatching { Repo.blacklist(item, inbox) }.getOrDefault(emptyList())
+                            val what = when (item.kind) { "call" -> "questo numero"; "whatsapp" -> "questa chat"; else -> "questo indirizzo" }
+                            ui.toast("Non ti verrà più proposto $what", "Annulla") { scope.launch { runCatching { Repo.unBlacklist(item, ids) } } }
+                        }
+                    },
                 )
             }
         }
@@ -149,7 +156,7 @@ fun seedFrom(m: InboxItem): Activity {
 }
 
 @Composable
-private fun InboxCard(m: InboxItem, color: Color, onImport: () -> Unit, onIgnore: () -> Unit) {
+private fun InboxCard(m: InboxItem, color: Color, onImport: () -> Unit, onIgnore: () -> Unit, onBlacklist: () -> Unit) {
     val p = LocalPalette.current
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -181,6 +188,7 @@ private fun InboxCard(m: InboxItem, color: Color, onImport: () -> Unit, onIgnore
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                 Button(onClick = onImport) { Text("Importa") }
                 TextButton(onClick = onIgnore) { Text("Ignora") }
+                TextButton(onClick = onBlacklist) { Text("Blacklist", color = LocalPalette.current.muted) }
             }
         }
     }
