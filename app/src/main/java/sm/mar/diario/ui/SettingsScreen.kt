@@ -89,6 +89,7 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
     var testing by remember { mutableStateOf(false) }
     var lock by remember { mutableStateOf(prefs.lockEnabled) }
     var ai by remember { mutableStateOf(prefs.aiEnabled) }
+    var aiModel by remember { mutableStateOf(prefs.aiModel) }
     var newAddr by remember { mutableStateOf("") }
 
     fun saveMail() {
@@ -160,6 +161,9 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
                 Text("Scrivi nella descrizione un riassunto breve dell'email, fatto con Gemini", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 Switch(ai, { ai = it; prefs.aiEnabled = it })
             }
+            OutlinedTextField(aiModel, { aiModel = it; prefs.aiModel = it }, label = { Text("Modello Gemini") }, singleLine = true,
+                supportingText = { Text("Se Google ritira un modello, scrivi qui il nome del nuovo (es. gemini-3.5-flash-lite).") },
+                modifier = Modifier.fillMaxWidth())
             if (prefs.lastAiError.isNotBlank()) Text(prefs.lastAiError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 

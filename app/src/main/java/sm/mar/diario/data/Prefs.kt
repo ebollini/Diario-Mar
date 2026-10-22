@@ -55,6 +55,9 @@ class Prefs(ctx: Context) {
     var aiEnabled: Boolean
         get() = plain.getBoolean("ai", true)
         set(v) = plain.edit().putBoolean("ai", v).apply()
+    var aiModel: String
+        get() = plain.getString("aiModel", sm.mar.diario.importers.Summarizer.DEFAULT_MODEL) ?: sm.mar.diario.importers.Summarizer.DEFAULT_MODEL
+        set(v) = plain.edit().putString("aiModel", v.trim()).apply()
     var lastAiError: String
         get() = plain.getString("lastAiError", "") ?: ""
         set(v) = plain.edit().putString("lastAiError", v).apply()

@@ -10,8 +10,9 @@ import sm.mar.diario.data.Prefs
 
 /** Riassunto molto breve delle email con Gemini (Firebase AI Logic). */
 object Summarizer {
-    // il primo modello disponibile viene usato; gli altri sono riserve
-    private val models = listOf("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash")
+    const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
+    // se il modello scelto non è disponibile si prova con le riserve
+    private val fallback = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash")
 
     suspend fun summarizeEmail(ctx: Context, direction: String, contact: String, subject: String, body: String): String? {
         val prefs = Prefs(ctx)
@@ -29,24 +30,28 @@ object Summarizer {
             ${body.take(5000)}
         """.trimIndent()
         var lastError: String? = null
+        val models = (listOf(prefs.aiModel.trim()).filter { it.isNotEmpty() } + fallback).distinct()
         for (name in models) {
             try {
                 val model = Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
                     modelName = name,
                     generationConfig = generationConfig {
                         temperature = 0.2f
-                        maxOutputTokens = 120
+                        maxOutputTokens = 1024
                     },
                 )
                 val text = withTimeout(25_000) { model.generateContent(prompt).text }
                     ?.trim()?.trim('"')?.replace(Regex("\\s+"), " ")
                 if (!text.isNullOrBlank()) {
                     prefs.lastAiError = ""
+                    if (name != prefs.aiModel) prefs.aiModel = name
                     return text.take(220)
                 }
             } catch (t: Throwable) {
                 lastError = t.message ?: t.javaClass.simpleName
-                if (lastError.contains("not found", true) || lastError.contains("404")) continue
+                val modelProblem = listOf("not found", "404", "not available", "no longer", "deprecat", "unsupported", "not supported", "model")
+                    .any { lastError.contains(it, true) }
+                if (modelProblem) continue
                 break
             }
         }
