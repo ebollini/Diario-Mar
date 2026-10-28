@@ -14,9 +14,16 @@ object Summarizer {
     // se il modello scelto non è disponibile si prova con le riserve
     private val fallback = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash")
 
-    suspend fun summarizeEmail(ctx: Context, direction: String, contact: String, subject: String, body: String): String? {
+    /** Prova con un testo di esempio: restituisce il riassunto o null (l'errore resta in Prefs.lastAiError). */
+    suspend fun test(ctx: Context): String? = summarizeEmail(
+        ctx, "in", "Mario Rossi", "Richiesta offerta rettificatrice",
+        "Buongiorno, vorremmo un'offerta per una rettificatrice cilindrica per pezzi fino a 500 mm entro venerdì prossimo. Allego il disegno del pezzo. Cordiali saluti",
+        force = true,
+    )
+
+    suspend fun summarizeEmail(ctx: Context, direction: String, contact: String, subject: String, body: String, force: Boolean = false): String? {
         val prefs = Prefs(ctx)
-        if (!prefs.aiEnabled) return null
+        if (!prefs.aiEnabled && !force) return null
         if (body.isBlank() && subject.isBlank()) return null
         val who = if (direction == "out") "inviata da Enrico a $contact" else "ricevuta da $contact"
         val prompt = """
@@ -30,6 +37,7 @@ object Summarizer {
             ${body.take(5000)}
         """.trimIndent()
         var lastError: String? = null
+        val tried = mutableListOf<String>()
         val models = (listOf(prefs.aiModel.trim()).filter { it.isNotEmpty() } + fallback).distinct()
         for (name in models) {
             try {
@@ -48,7 +56,8 @@ object Summarizer {
                     return text.take(220)
                 }
             } catch (t: Throwable) {
-                lastError = t.message ?: t.javaClass.simpleName
+                lastError = (t.message ?: t.javaClass.simpleName).replace(Regex("\\s+"), " ").take(400)
+                tried += name
                 val modelProblem = listOf("not found", "404", "not available", "no longer", "deprecat", "unsupported", "not supported", "model")
                     .any { lastError.contains(it, true) }
                 if (modelProblem) continue
@@ -60,8 +69,9 @@ object Summarizer {
             lastError.contains("api", true) && lastError.contains("not", true) && lastError.contains("enabled", true) ->
                 "Gemini non è attivo nel progetto Firebase (AI Logic)."
             lastError.contains("quota", true) || lastError.contains("429") -> "Limite gratuito di Gemini raggiunto per oggi: uso l'inizio del testo."
-            else -> "Riassunto non riuscito: $lastError"
-        }
+            lastError.contains("permission", true) || lastError.contains("403") -> "Accesso a Gemini negato: controlla che AI Logic sia attivo con Gemini Developer API."
+            else -> "Riassunto non riuscito."
+        }.let { if (lastError == null) it else "$it\nModelli provati: ${tried.joinToString(", ")}\nDettaglio: $lastError" }
         return null
     }
 }

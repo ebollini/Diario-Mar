@@ -90,6 +90,8 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
     var lock by remember { mutableStateOf(prefs.lockEnabled) }
     var ai by remember { mutableStateOf(prefs.aiEnabled) }
     var aiModel by remember { mutableStateOf(prefs.aiModel) }
+    var aiTesting by remember { mutableStateOf(false) }
+    var aiResult by remember { mutableStateOf<String?>(null) }
     var newAddr by remember { mutableStateOf("") }
 
     fun saveMail() {
@@ -164,7 +166,19 @@ fun SettingsScreen(ui: UiState, settings: Settings, modifier: Modifier) {
             OutlinedTextField(aiModel, { aiModel = it; prefs.aiModel = it }, label = { Text("Modello Gemini") }, singleLine = true,
                 supportingText = { Text("Se Google ritira un modello, scrivi qui il nome del nuovo (es. gemini-3.5-flash-lite).") },
                 modifier = Modifier.fillMaxWidth())
-            if (prefs.lastAiError.isNotBlank()) Text(prefs.lastAiError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            FilledTonalButton(enabled = !aiTesting, onClick = {
+                aiTesting = true; aiResult = null
+                scope.launch {
+                    val r = runCatching { sm.mar.diario.importers.Summarizer.test(ctx) }.getOrNull()
+                    aiResult = if (r != null) "Funziona. Esempio di riassunto: $r" else prefs.lastAiError.ifBlank { "Nessuna risposta da Gemini." }
+                    aiTesting = false
+                }
+            }) { Text(if (aiTesting) "Provo…" else "Prova riassunto") }
+            val shown = aiResult ?: prefs.lastAiError
+            if (shown.isNotBlank()) Text(
+                shown, style = MaterialTheme.typography.bodySmall,
+                color = if (shown.startsWith("Funziona")) LocalPalette.current.ok else MaterialTheme.colorScheme.error,
+            )
         }
 
         Section("Promemoria \"Fai il punto\"") {
